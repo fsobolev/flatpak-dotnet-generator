@@ -10,6 +10,7 @@ import binascii
 import json
 import subprocess
 import tempfile
+import urllib.request
 
 
 def main():
@@ -22,56 +23,14 @@ def main():
                         default='nuget-sources')
     args = parser.parse_args()
 
-    sources = []
-
-    sources += json.loads('''[{
-        "type": "file",
-        "url": "https://api.nuget.org/v3-flatcontainer/microsoft.aspnetcore.app.runtime.linux-arm/7.0.3/microsoft.aspnetcore.app.runtime.linux-arm.7.0.3.nupkg",
-        "sha512": "af20c42549dcf7f25a2046aa6ef071d0231c554e0b5c5a357207fc708384d46a1d57e6f2e054a4eddeb2f04fe64d7ef3c9974fc50878d6e3ae018b0f735cd141",
-        "dest": "nuget-sources",
-        "dest-filename": "microsoft.aspnetcore.app.runtime.linux-arm.7.0.3.nupkg"
-    },
-    {
-        "type": "file",
-        "url": "https://api.nuget.org/v3-flatcontainer/microsoft.aspnetcore.app.runtime.linux-arm64/7.0.3/microsoft.aspnetcore.app.runtime.linux-arm64.7.0.3.nupkg",
-        "sha512": "15a2fbfed3d2bb2433c560e2ddd5f292d3c35912855f912d4544f7d24be9144d0c910f65db041399c1d06aaa726616e984f0cf62223ca214587c6620645c5bca",
-        "dest": "nuget-sources",
-        "dest-filename": "microsoft.aspnetcore.app.runtime.linux-arm64.7.0.3.nupkg"
-    },
-    {
-        "type": "file",
-        "url": "https://api.nuget.org/v3-flatcontainer/microsoft.aspnetcore.app.runtime.linux-x64/7.0.3/microsoft.aspnetcore.app.runtime.linux-x64.7.0.3.nupkg",
-        "sha512": "5d5260808836083ea348d5c99e5f447eef0de117672c3b00113874e1f3b25c7eca7ae0036a10a167f788cbf5953ddaa9f3a84f9ea9944dca079b7a44c4aa7ad6",
-        "dest": "nuget-sources",
-        "dest-filename": "microsoft.aspnetcore.app.runtime.linux-x64.7.0.3.nupkg"
-    },
-    {
-        "type": "file",
-        "url": "https://api.nuget.org/v3-flatcontainer/microsoft.netcore.app.runtime.linux-arm/7.0.3/microsoft.netcore.app.runtime.linux-arm.7.0.3.nupkg",
-        "sha512": "33dce0732a115e8b598edc0df37643f6d88aaa9885ac58653394b42131833aea2d71c54c69a4fa6aec2ea03064ce1414eb98c4dd1a1c74a9fc5f57376c8e7796",
-        "dest": "nuget-sources",
-        "dest-filename": "microsoft.netcore.app.runtime.linux-arm.7.0.3.nupkg"
-    },
-    {
-        "type": "file",
-        "url": "https://api.nuget.org/v3-flatcontainer/microsoft.netcore.app.runtime.linux-arm64/7.0.3/microsoft.netcore.app.runtime.linux-arm64.7.0.3.nupkg",
-        "sha512": "49f15b132aa6a48b318304450ee94afbec8580ba2b46ac2c8a6800237ca6b1b59b74e7f3fa5fc4020909d99f267863f0f8733debf1a6da3679ac8b1f42d525e0",
-        "dest": "nuget-sources",
-        "dest-filename": "microsoft.netcore.app.runtime.linux-arm64.7.0.3.nupkg"
-    },
-    {
-        "type": "file",
-        "url": "https://api.nuget.org/v3-flatcontainer/microsoft.netcore.app.runtime.linux-x64/7.0.3/microsoft.netcore.app.runtime.linux-x64.7.0.3.nupkg",
-        "sha512": "8e82d6cc1c72b1fb098e857d66e9a0445ac99f66d9f94ecdb5c68f398bf71f95783982c7e33f8ca0869778fcba8e9f3d78dacd93003c715f11fa5f987fff10ac",
-        "dest": "nuget-sources",
-        "dest-filename": "microsoft.netcore.app.runtime.linux-x64.7.0.3.nupkg"
-    }]''')
-
     with tempfile.TemporaryDirectory(dir=Path()) as tmp:
+        sources = get_runtime_sources(args.destdir)
+
         runtime_args = []
         if args.runtime:
             runtime_args.extend(('-r', args.runtime))
 
+        print('Restoring the project...')
         subprocess.run([
             'flatpak', 'run',
             '--env=DOTNET_CLI_TELEMETRY_OPTOUT=true',
@@ -106,6 +65,25 @@ def main():
             indent=4
         )
 
+def get_runtime_sources(destdir):
+    result = []
+    for core in ('aspnetcore', 'netcore'):
+        for arch in ('arm', 'arm64', 'x64'):
+            print(f'Getting data for microsoft.{core}.app.runtime.linux-{arch}...')
+            with urllib.request.urlopen(f'https://api.nuget.org/v3/registration5-semver1/microsoft.{core}.app.runtime.linux-{arch}/index.json') as reg_data:
+                catalog_url = json.load(reg_data)['items'][-1]['items'][-1]['catalogEntry']['@id']
+            with urllib.request.urlopen(catalog_url) as catalog_data:
+                data = json.load(catalog_data)
+                version = data['version']
+                sha512 = binascii.hexlify(base64.b64decode(data['packageHash'])).decode('ascii')
+            result.append({
+                'type': 'file',
+                'url': f'https://api.nuget.org/v3-flatcontainer/microsoft.{core}.app.runtime.linux-{arch}/{version}/microsoft.{core}.app.runtime.linux-{arch}.{version}.nupkg',
+                'sha512': sha512,
+                'dest': destdir,
+                'dest-filename': f'microsoft.{core}.app.runtime.linux-{arch}.{version}.nupkg',
+            })
+    return result
 
 if __name__ == '__main__':
     main()
