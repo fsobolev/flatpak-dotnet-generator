@@ -5,7 +5,7 @@ Tool to automatically generate a `flatpak-builder` sources file from a .NET Core
 This is a modified version of a script from [Flatpak Builder Tools](https://github.com/flatpak/flatpak-builder-tools/tree/master/dotnet).
 
 List of changes:
-* Add packages that are required to build self-contained apps
+* Added packages that are required to build self-contained apps (latest stable version is retrieved automatically)
 * `org.freedesktop.Sdk` version changed to 22.08
 * `dotnet` version changed to 7
 
