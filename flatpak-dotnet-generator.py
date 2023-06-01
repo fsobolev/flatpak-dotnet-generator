@@ -57,10 +57,14 @@ def main():
                 'dest': args.destdir,
                 'dest-filename': filename,
             })
-
+    
+    result = []
+    for s in sources:
+        if s not in result:
+            result.append(s)
     with open(args.output, 'w') as fp:
         json.dump(
-            sorted(sources, key=lambda n: n.get("dest-filename")),
+            sorted(result, key=lambda n: n.get("dest-filename")),
             fp,
             indent=4
         )
