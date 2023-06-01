@@ -23,7 +23,7 @@ def main():
                         default='nuget-sources')
     args = parser.parse_args()
 
-    with tempfile.TemporaryDirectory(dir=Path()) as tmp:
+    with tempfile.TemporaryDirectory(dir='/tmp') as tmp:
         sources = get_runtime_sources(args.destdir)
 
         runtime_args = []
