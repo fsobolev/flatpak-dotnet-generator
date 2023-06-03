@@ -21,9 +21,12 @@ def main():
     parser.add_argument('--destdir',
                         help='The directory the generated sources file will save sources to',
                         default='nuget-sources')
+    parser.add_argument('--tmpdir',
+                        help='Where to create temporary directory with packages',
+                        default='.')
     args = parser.parse_args()
 
-    with tempfile.TemporaryDirectory(dir='/tmp') as tmp:
+    with tempfile.TemporaryDirectory(dir=args.tmpdir) as tmp:
         sources = get_runtime_sources(args.destdir)
 
         runtime_args = []
